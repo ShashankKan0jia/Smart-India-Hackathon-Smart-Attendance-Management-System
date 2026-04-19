@@ -1,8 +1,9 @@
 const Student = require("../models/Student");
 const Attendance = require("../models/Attendance");
 const Teacher = require("../models/Teacher");
+const Admin = require("../models/Admin");
 
-// ================= LOGIN =================
+// ================= TEACHER LOGIN =================
 exports.login = async (req, res) => {
   try {
     const { teacherId, password } = req.body;
@@ -31,6 +32,26 @@ exports.login = async (req, res) => {
         school: teacher.school,
         class: teacher.class,
       },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN LOGIN =================
+exports.adminLogin = async (req, res) => {
+  try {
+    const { adminId, password } = req.body;
+
+    const admin = await Admin.findOne({ adminId });
+
+    if (!admin || admin.password !== password) {
+      return res.status(401).json({ message: "Invalid admin credentials" });
+    }
+
+    res.json({
+      message: "Admin login successful",
+      admin: { adminId },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -131,7 +152,7 @@ exports.markTeacherAttendance = async (req, res) => {
   }
 };
 
-// ================= GET STUDENTS OF CLASS =================
+// ================= GET STUDENTS (TEACHER) =================
 exports.getStudentsByClassAndSchool = async (req, res) => {
   try {
     const { className, school } = req.query;
@@ -157,7 +178,6 @@ exports.markStudentAttendanceBulk = async (req, res) => {
     const { students, school, className } = req.body;
     const today = new Date().toISOString().split("T")[0];
 
-    // 🔒 CLASS LEVEL LOCK CHECK
     const alreadySubmitted = await Attendance.findOne({
       userType: "student",
       class: className,
@@ -186,6 +206,115 @@ exports.markStudentAttendanceBulk = async (req, res) => {
       message: "Student attendance submitted successfully",
       count: records.length,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ATTENDANCE HISTORY =================
+exports.getAttendanceByClass = async (req, res) => {
+  try {
+    const { className, school, date } = req.query;
+
+    const filter = { class: className, school };
+
+    if (date) filter.date = date;
+
+    const attendance = await Attendance.find(filter);
+
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN: GET ALL TEACHERS =================
+exports.getAllTeachers = async (req, res) => {
+  try {
+    const teachers = await Teacher.find();
+    res.json(teachers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN: GET STUDENTS =================
+exports.getStudentsByClass = async (req, res) => {
+  try {
+    const { className, school } = req.query;
+
+    const students = await Student.find({ class: className, school });
+
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN: UPDATE STUDENT =================
+exports.updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updated = await Student.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN: DELETE STUDENT =================
+exports.deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await Student.findByIdAndDelete(id);
+
+    res.json({ message: "Student deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= ADMIN: UPDATE ATTENDANCE =================
+exports.updateAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updated = await Attendance.findByIdAndUpdate(id, req.body, {
+      new: true,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ================= GET ATTENDANCE BY CLASS + DATE =================
+exports.getAttendanceByClass = async (req, res) => {
+  try {
+    const { className, school, date } = req.query;
+
+    if (!className || !school) {
+      return res.status(400).json({ message: "className and school required" });
+    }
+
+    const filter = {
+      class: className,
+      school,
+    };
+
+    if (date) {
+      filter.date = date;
+    }
+
+    const attendance = await Attendance.find(filter);
+
+    res.json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

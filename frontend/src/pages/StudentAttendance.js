@@ -3,40 +3,24 @@ import axios from "axios";
 
 function StudentAttendance() {
   const teacher = JSON.parse(localStorage.getItem("teacher"));
-
   const [students, setStudents] = useState([]);
   const [locked, setLocked] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
   const fetchStudents = async () => {
-    try {
-      const res = await axios.get(
-        `http://localhost:5000/api/students?className=${teacher.class}&school=${teacher.school}`,
-      );
-
-      // default status = Present
-      const formatted = res.data.map((s) => ({
-        ...s,
-        status: "Present",
-      }));
-
-      setStudents(formatted);
-      setLoading(false);
-    } catch (err) {
-      alert("Failed to load students");
-      setLoading(false);
-    }
+    const res = await axios.get(
+      `http://localhost:5000/api/students?className=${teacher.class}&school=${teacher.school}`,
+    );
+    setStudents(res.data.map((s) => ({ ...s, status: "Present" })));
   };
 
-  const changeStatus = (index, status) => {
+  const changeStatus = (i, status) => {
     if (locked) return;
-
     const updated = [...students];
-    updated[index].status = status;
+    updated[i].status = status;
     setStudents(updated);
   };
 
@@ -45,82 +29,77 @@ function StudentAttendance() {
       await axios.post(
         "http://localhost:5000/api/mark-student-attendance-bulk",
         {
-          students: students.map((s) => ({
-            studentId: s.studentId,
-            name: s.name,
-            status: s.status,
-          })),
+          students,
           school: teacher.school,
           className: teacher.class,
         },
       );
-
-      alert("Attendance submitted successfully");
+      alert("Submitted");
       setLocked(true);
-    } catch (error) {
-      alert(error.response?.data?.message || "Error submitting attendance");
+    } catch (e) {
+      alert(e.response?.data?.message);
     }
   };
 
-  if (loading) return <h2>Loading students...</h2>;
-
   return (
-    <div style={{ textAlign: "center", marginTop: "30px" }}>
-      <h2>Student Attendance - Class {teacher.class}</h2>
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2>Class {teacher.class}</h2>
 
-      <table
-        border="1"
-        style={{ margin: "auto", width: "80%", borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            <th>Student ID</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {students.map((s, index) => (
-            <tr key={s.studentId}>
-              <td>{s.studentId}</td>
-              <td>{s.name}</td>
-              <td>{s.status}</td>
-              <td>
-                <button
-                  disabled={locked}
-                  onClick={() => changeStatus(index, "Present")}
-                >
-                  Present
-                </button>
-
-                <button
-                  disabled={locked}
-                  style={{ marginLeft: "10px" }}
-                  onClick={() => changeStatus(index, "Absent")}
-                >
-                  Absent
-                </button>
-              </td>
+        <table style={styles.table}>
+          <thead>
+            <tr style={styles.head}>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
 
-      <br />
+          <tbody>
+            {students.map((s, i) => (
+              <tr key={s.studentId}>
+                <td>{s.studentId}</td>
+                <td>{s.name}</td>
+                <td style={{ color: s.status === "Present" ? "green" : "red" }}>
+                  {s.status}
+                </td>
+                <td>
+                  <button
+                    disabled={locked}
+                    onClick={() => changeStatus(i, "Present")}
+                  >
+                    ✔
+                  </button>
+                  <button
+                    disabled={locked}
+                    onClick={() => changeStatus(i, "Absent")}
+                  >
+                    ✖
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      <button disabled={locked} onClick={finalSubmit}>
-        Final Submit Attendance
-      </button>
-
-      {locked && (
-        <p style={{ color: "green", fontWeight: "bold" }}>
-          Attendance Locked for Today
-        </p>
-      )}
+        <button onClick={finalSubmit}>Submit</button>
+      </div>
     </div>
   );
 }
+
+const styles = {
+  page: { display: "flex", justifyContent: "center", marginTop: "30px" },
+  card: {
+    width: "80%",
+    background: "white",
+    padding: "20px",
+    borderRadius: "10px",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+  },
+  table: { width: "100%", marginTop: "20px" },
+  head: { background: "#007bff", color: "white" },
+};
 
 export default StudentAttendance;
